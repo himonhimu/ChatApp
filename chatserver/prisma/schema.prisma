@@ -14,18 +14,35 @@ datasource db {
 }
 
 model User {
-  id       String  @id @default(auto()) @map("_id") @db.ObjectId
-  email    String
-  name     String
-  password String
-  isAdmin  Boolean
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  email       String         @unique
+  name        String
+  password    String
+  isAdmin     Boolean
+  GroupMember groupmembers[]
+  messageby   messages[]
 }
 
 model messages {
   id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  senderId   String
+  senderId   String   @db.ObjectId
   receiverId String
   content    String
   timestamp  DateTime
   isGroup    Boolean
+  user       User     @relation(fields: [senderId], references: [id]) // Make relation optional
+}
+
+model messagegroup {
+  id          String         @id @default(auto()) @map("_id") @db.ObjectId
+  groupname   String
+  GroupMember groupmembers[]
+}
+
+model groupmembers {
+  id           String       @id @default(auto()) @map("_id") @db.ObjectId
+  groupid      String       @db.ObjectId
+  memberid     String       @db.ObjectId
+  user         User?        @relation(fields: [memberid], references: [id]) // Make relation optional
+  messagegroup messagegroup @relation(fields: [groupid], references: [id]) // Foreign key to group
 }

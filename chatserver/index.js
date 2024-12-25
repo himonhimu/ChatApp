@@ -6,9 +6,12 @@ const { createServer } = require("node:http");
 const { Server } = require("socket.io");
 const UserRouter = require("./functions/routes/UserRoutes");
 const { addMessages } = require("./functions/models/MessagesModels");
+const MessagesRouter = require("./functions/routes/MessagesRoutes");
+const GroupRoutes = require("./functions/routes/GroupRoutes");
 const port = process.env.PORT;
 
 const app = express();
+const prisma = require("./prisma");
 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(express.json({ limit: "50mb" }));
@@ -42,48 +45,92 @@ app.get("/", (req, res) => {
 //   res.send({ data: userArray });
 // });
 
+// here socket message start
+
 let activeUsers = []; // Store active users and their socket IDs
 
 io.on("connection", (socket) => {
-  console.log("User connected: ", socket.id);
-
-  // Handle user connection (add to activeUsers array)
+  // Handle a user connecting
   socket.on("user_connected", (userData) => {
+    // Add the user if they are not already in the activeUsers list
     if (!activeUsers.find((user) => user.id === userData.id)) {
       activeUsers.push({ ...userData, socketId: socket.id });
     }
-    console.log("Active users: ", activeUsers);
-    io.emit("active_users", activeUsers); // Send the updated active users to all clients
+    // Emit the updated list of active users to all clients
+    io.emit("active_users", activeUsers);
+    // console.log("Active users:", activeUsers.length, activeUsers);
   });
 
-  // Listen for incoming messages and send to the specific receiver
-  socket.on("send_message", (messageData) => {
-    const { receiverId, senderId } = messageData;
+  // Listen for incoming messages and send to the specific receiver (individual or group)
+  socket.on("send_message", async (messageData) => {
+    const { receiverId, senderId, content, isGroup } = messageData;
 
-    // Find the socketId of the receiver
-    const receiver = activeUsers.find((user) => user.id === receiverId);
-    console.log("reciver", receiver);
+    // Handle group messaging
+    if (isGroup) {
+      const group = await prisma.messagegroup.findUnique({
+        where: { id: receiverId }, // Group ID
+        include: { GroupMember: true }, // Include group members
+      });
 
-    if (receiver) {
-      // Emit message only to the receiver using their socket ID
-      io.to(receiver.socketId).emit("receive_message", messageData);
-      // io.emit("receive_message", messageData);
-      // console.log("Message sent to:", receiver.socketId);
-    } else {
-      console.log("Receiver is not connected or not found");
+      if (!group) {
+        console.log("Group not found");
+        return;
+      }
+
+      const data = await addMessages(messageData); // Save the message to the database
+
+      // Send the message to all group members who are online
+      group.GroupMember.forEach((member) => {
+        const receiver = activeUsers.find(
+          (user) => user.id === member.memberid
+        );
+        if (receiver) {
+          // Send the message to the member's socketId
+          io.to(receiver.socketId).emit("receive_message", data);
+        }
+      });
+
+      // console.log(`Message sent to group: ${group.groupname}`);
+    }
+    // Handle individual messaging (if needed)
+    else {
+      const receiver = activeUsers.find((user) => user.id === receiverId);
+      const sender = activeUsers.find((user) => user.id === senderId);
+
+      const data = await addMessages(messageData); // Save the message
+
+      // Send the message to the sender
+      if (sender) {
+        io.to(sender.socketId).emit("receive_message", data);
+      } else {
+        console.log("Sender is not connected or not found");
+      }
+
+      // Send the message to the receiver
+      if (receiver) {
+        io.to(receiver.socketId).emit("receive_message", data);
+      } else {
+        console.log("Receiver is not connected or not found");
+      }
     }
   });
 
   // Handle user disconnection
   socket.on("disconnect", () => {
-    console.log("User disconnected:", socket.id);
+    // Remove the user from the active users list upon disconnect
     activeUsers = activeUsers.filter((user) => user.socketId !== socket.id);
-    io.emit("active_users", activeUsers); // Update all clients with active users
+    // Emit the updated active users list to all clients
+    io.emit("active_users", activeUsers);
+    // console.log("User disconnected, active users:", activeUsers.length);
   });
 });
+
+//here socket msg end
 
 server.listen(port, () => {
   console.log(`server running at http://localhost:${port}`);
 });
 
 app.use("/user", UserRouter);
+app.use("/messages", MessagesRouter);
+app.use("/group", GroupRoutes);

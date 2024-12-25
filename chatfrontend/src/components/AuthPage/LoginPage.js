@@ -1,11 +1,13 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import React, { useEffect } from "react";
 import { setCookie } from "cookies-next";
 import { useUser } from "../StateMange/MyContext";
 import { useRouter } from "next/navigation";
 import toast from "react-hot-toast";
+import { signIn } from "next-auth/react";
+import { getSession } from "next-auth/react";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -37,6 +39,47 @@ export default function LoginPage() {
 
     // user/sign-in?email=676a9389c732e763a0e27207
   }
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      const session = await getSession();
+      if (session) {
+        const expirationDate = new Date();
+        expirationDate.setTime(expirationDate.getTime() + 720 * 60 * 1000); //720 minutes = 12 hours
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_LINK}/user/add-user`,
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: session.email,
+              name: session.name,
+              password: "123456",
+            }),
+          }
+        );
+        const data = await response.json();
+        setCookie("chat-user", JSON.stringify(data), {
+          expires: expirationDate,
+        });
+        login(data);
+        router.push("/");
+      } else {
+        console.log("No session found");
+      }
+    };
+
+    fetchSession();
+  }, []);
+
+  // async function onCheckClick() {
+  //   const session = await getSession();
+  //   console.log(session); // Logs the session data if available
+  // }
+
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gray-100">
       <form
@@ -78,6 +121,12 @@ export default function LoginPage() {
               Sign Up
             </Link>
           </p>
+          <button type="button" onClick={() => signIn("google")}>
+            Sign in with goolge
+          </button>
+          {/* <button type="button" onClick={onCheckClick}>
+            Check
+          </button> */}
         </div>
       </form>
     </div>

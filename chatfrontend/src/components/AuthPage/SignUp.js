@@ -28,7 +28,6 @@ export default function SignUp() {
       }
     );
     const data = await response.json();
-    login(data);
     setCookie("chat-user", JSON.stringify(data), {
       expires: expirationDate,
     });

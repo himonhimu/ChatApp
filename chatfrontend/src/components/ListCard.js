@@ -4,9 +4,10 @@ import { useUser } from "./StateMange/MyContext";
 
 export default function ListCard({ isActive, userdata }) {
   //   console.log(isActive);
-  const { setSlectedUserChat, selectedUser } = useUser();
+  const { setSlectedUserChat, selectedUser, setSelectedGroupChat } = useUser();
   function onUserClick() {
     setSlectedUserChat(userdata);
+    setSelectedGroupChat({});
   }
 
   return (
