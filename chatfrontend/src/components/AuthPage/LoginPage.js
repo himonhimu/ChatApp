@@ -1,13 +1,12 @@
 "use client";
+import { setCookie } from "cookies-next";
+import { getSession, signIn } from "next-auth/react";
 import Image from "next/image";
 import Link from "next/link";
-import React, { useEffect } from "react";
-import { setCookie } from "cookies-next";
-import { useUser } from "../StateMange/MyContext";
 import { useRouter } from "next/navigation";
+import { useEffect } from "react";
 import toast from "react-hot-toast";
-import { signIn } from "next-auth/react";
-import { getSession } from "next-auth/react";
+import { useUser } from "../StateMange/MyContext";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -88,7 +87,7 @@ export default function LoginPage() {
       >
         <div className="flex items-center justify-center">
           <div className="relative w-20 aspect-square">
-            <Image src={"/file.svg"} fill alt="file placeholder" />
+            <Image src="/images/chat100.png" fill alt="file placeholder" />
           </div>
         </div>
         <div className="flex gap-2 items-center">
@@ -121,7 +120,14 @@ export default function LoginPage() {
               Sign Up
             </Link>
           </p>
-          <button type="button" onClick={() => signIn("google")}>
+          <button
+            type="button"
+            onClick={() => signIn("google")}
+            className="flex items-center gap-3 border border-green-500 p-2 rounded-lg"
+          >
+            <div className="relative w-8 aspect-square ">
+              <Image src="/images/google.png" fill alt="file placeholder" />
+            </div>
             Sign in with goolge
           </button>
           {/* <button type="button" onClick={onCheckClick}>

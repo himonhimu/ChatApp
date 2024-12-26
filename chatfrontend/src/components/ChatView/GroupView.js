@@ -46,7 +46,7 @@ export default function GroupView() {
       isGroup: true,
     };
 
-    socket.emit("user_connected", user);
+    // socket.emit("user_connected", user);
     socket.emit("send_message", messageData);
 
     setMessage(""); // Clear input field

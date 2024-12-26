@@ -1,10 +1,11 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import React from "react";
+import React, { useEffect } from "react";
 import { useUser } from "../StateMange/MyContext";
 import { setCookie } from "cookies-next";
 import { useRouter } from "next/navigation";
+import { getSession, signIn } from "next-auth/react";
 
 export default function SignUp() {
   const router = useRouter();
@@ -34,6 +35,42 @@ export default function SignUp() {
     login(data);
     router.push("/");
   }
+
+  useEffect(() => {
+    const fetchSession = async () => {
+      const session = await getSession();
+      if (session) {
+        const expirationDate = new Date();
+        expirationDate.setTime(expirationDate.getTime() + 720 * 60 * 1000); //720 minutes = 12 hours
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_LINK}/user/add-user`,
+          {
+            method: "POST",
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              email: session.email,
+              name: session.name,
+              password: "123456",
+            }),
+          }
+        );
+        const data = await response.json();
+        setCookie("chat-user", JSON.stringify(data), {
+          expires: expirationDate,
+        });
+        login(data);
+        router.push("/");
+      } else {
+        console.log("No session found");
+      }
+    };
+
+    fetchSession();
+  }, []);
+
   return (
     <div className="w-full h-screen flex items-center justify-center bg-gray-100">
       <form
@@ -42,7 +79,7 @@ export default function SignUp() {
       >
         <div className="flex items-center justify-center">
           <div className="relative w-20 aspect-square">
-            <Image src={"/file.svg"} fill alt="file placeholder" />
+            <Image src={"/images/chat100.png"} fill alt="file placeholder" />
           </div>
         </div>
         <div className="flex gap-2 items-center">
@@ -85,6 +122,16 @@ export default function SignUp() {
               Login
             </Link>
           </p>
+          <button
+            type="button"
+            onClick={() => signIn("google")}
+            className="flex items-center gap-3 border border-green-500 p-2 rounded-lg"
+          >
+            <div className="relative w-8 aspect-square ">
+              <Image src="/images/google.png" fill alt="file placeholder" />
+            </div>
+            Sign in with goolge
+          </button>
         </div>
       </form>
     </div>

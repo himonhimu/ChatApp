@@ -34,6 +34,6 @@ export function middleware(req) {
 
 export const config = {
   matcher: [
-    "/((?!api|_next/static|_next/image|favicon.ico).*)", // Match all pages except static assets or APIs
+    "/((?!api|_next/static|_next/image|favicon.ico|images/).*)", // Match all pages except static assets or APIs
   ],
 };
