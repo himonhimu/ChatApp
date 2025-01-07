@@ -63,7 +63,7 @@ io.on("connection", (socket) => {
 
   // Listen for incoming messages and send to the specific receiver (individual or group)
   socket.on("send_message", async (messageData) => {
-    const { receiverId, senderId, content, isGroup } = messageData;
+    const { receiverId, senderId, isGroup } = messageData;
 
     // Handle group messaging
     if (isGroup) {
@@ -113,6 +113,17 @@ io.on("connection", (socket) => {
         console.log("Receiver is not connected or not found");
       }
     }
+  });
+
+  // call send
+  socket.on("call:send", (data) => {
+    // console.log(data);
+    const { from, fromuserid, touserid, offer } = data;
+    console.log(from, fromuserid, touserid);
+    const fromuser = activeUsers.find((fitem) => fitem.id === fromuserid);
+    const touser = activeUsers.find((fitem) => fitem.id === touserid);
+    console.log(offer);
+    // io.emit("active_users", activeUsers);
   });
 
   // Handle user disconnection

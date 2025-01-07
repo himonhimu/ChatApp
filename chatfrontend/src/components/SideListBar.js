@@ -27,7 +27,7 @@ export default function SideListBar() {
   const [allGroupList, setAllGroupList] = useState([]);
   const [addMember, setAddMember] = useState();
   const { user, setSelectedGroupChat, setSlectedUserChat } = useUser();
-  const [tabOption, setTabOption] = useState(1);
+  const [tabOption, setTabOption] = useState(2);
 
   useEffect(() => {
     socket.on("active_users", (users) => {

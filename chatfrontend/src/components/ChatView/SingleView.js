@@ -3,7 +3,8 @@ import { useUser } from "../StateMange/MyContext";
 import socket from "../Connector";
 import ChatMe from "./ChatMe";
 import ChatOthers from "./ChatOthers";
-
+import peer from "../service/peer";
+import ReactPlayer from "react-player";
 async function getOldMessages(setMessages, selectedUser, user) {
   // messages senderId
   // receiverId
@@ -68,6 +69,35 @@ export default function SingleView() {
       });
     }
   };
+  const [myStream, setMyStream] = useState();
+  async function handleCall() {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    });
+    console.log(stream);
+    const offer = await peer.getOffer();
+    console.log(offer);
+
+    setMyStream(stream);
+
+    socket.emit("call:send", {
+      from: socket.id,
+      fromuserid: user.id,
+      touserid: selectedUser.id,
+      offer,
+    });
+    // console.log(selectedUser, user, socket.id);
+  }
+
+  function onCloseCamera() {
+    if (myStream) {
+      // Stop all video and audio tracks
+      myStream.getTracks().forEach((track) => track.stop());
+      setMyStream(null);
+      console.log("Camera and microphone stopped");
+    }
+  }
 
   return (
     <div className="bg-purple-100 col-span-6 h-[calc(100vh-130px)] relative">
@@ -92,6 +122,23 @@ export default function SingleView() {
           )}
       </div>
 
+      <div className="absolute top-0 w-[300px] h-[300px] bg-gray-400">
+        <p>stream data</p>
+        {myStream && (
+          <>
+            <ReactPlayer
+              playing
+              muted
+              height={"200px"}
+              width={"300px"}
+              url={myStream}
+            />
+            <button onClick={onCloseCamera}>Close</button>
+          </>
+        )}
+      </div>
+      {/* <p>stream</p> */}
+
       <div className="absolute bottom-0 flex w-full px-4 gap-2">
         <input
           type="text"
@@ -105,6 +152,12 @@ export default function SingleView() {
           onClick={sendMessage}
         >
           Send
+        </button>
+        <button
+          className="p-2 bg-teal-500 rounded-md text-white"
+          onClick={handleCall}
+        >
+          Call
         </button>
       </div>
     </div>
