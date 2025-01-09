@@ -29,7 +29,7 @@ export const UserProvider = ({ children }) => {
   };
   const setSelectedGroupChat = (groupdata) => {
     setSelectedGroup(groupdata);
-    socket.emit("user_connected", { ...groupdata, isGroup: true });
+    // socket.emit("user_connected", { ...groupdata, isGroup: true });
   };
 
   return (

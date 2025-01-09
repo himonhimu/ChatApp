@@ -148,7 +148,3 @@ io.on("connection", (socket) => {
 server.listen(port, () => {
   console.log(`server running at http://localhost:${port}`);
 });
-
-app.use("/user", UserRouter);
-app.use("/messages", MessagesRouter);
-app.use("/group", GroupRoutes);

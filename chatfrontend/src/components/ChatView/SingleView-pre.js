@@ -18,6 +18,8 @@ export default function SingleView() {
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
   const { selectedUser, user } = useUser();
+  const [myStream, setMyStream] = useState(null);
+  const [remoteStream, setRemoteStream] = useState(null);
 
   const chatContainerRef = useRef(null);
 
@@ -27,75 +29,58 @@ export default function SingleView() {
     }
   }, [selectedUser, user]);
 
-  const [remoteSocketId, setRemoteSocketId] = useState(selectedUser?.email);
-  const [myStream, setMyStream] = useState();
-  const [remoteStream, setRemoteStream] = useState();
-
-  const handleUserJoined = useCallback(({ email, id }) => {
-    console.log(`Email ${email} joined room`);
-    setRemoteSocketId(id);
-  }, []);
-
-  async function handleCall() {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: true,
-      video: true,
-    });
-    setMyStream(stream);
-
-    const offer = await peer.getOffer();
-    socket.emit("incomming:call", {
-      to: remoteSocketId,
-      offer,
-    });
+  function sendStreams() {
+    for (const track of myStream.getTracks()) {
+      peer.peer.addTrack(track, myStream);
+    }
   }
+  useEffect(() => {
+    socket.on("receive_message", (messageData) => {
+      setMessages((prevMessages) => [...prevMessages, messageData]);
+    });
 
-  // const handleCallUser = useCallback(async () => {
-  //   const stream = await navigator.mediaDevices.getUserMedia({
-  //     audio: true,
-  //     video: true,
-  //   });
-  //   const offer = await peer.getOffer();
-  //   socket.emit("user:call", { to: remoteSocketId, offer });
-  //   setMyStream(stream);
-  // }, [remoteSocketId, socket]);
-
-  const handleIncommingCall = useCallback(
-    async ({ from, offer }) => {
-      setRemoteSocketId(from);
+    socket.on("call:incoming", async (data) => {
+      const { fromuserid, offer } = data;
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: true,
         video: true,
       });
       setMyStream(stream);
-      console.log(`Incoming Call`, from, offer);
       const ans = await peer.getAnswer(offer);
-      socket.emit("call:accepted", { to: from, ans });
-    },
-    [socket]
-  );
+      socket.emit("call:accepted", { to: fromuserid, ans });
+    });
 
-  const sendStreams = useCallback(() => {
-    for (const track of myStream.getTracks()) {
-      peer.peer.addTrack(track, myStream);
-    }
-  }, [myStream]);
+    socket.on("call:accepted", async (data) => {
+      await peer.setLocalDes(data.ans);
+    });
 
-  const handleCallAccepted = useCallback(
-    ({ from, ans }) => {
-      peer.setLocalDescription(ans);
-      console.log("Call Accepted!");
-      sendStreams();
-    },
-    [sendStreams]
-  );
+    socket.on("peer:nego:needed", async (data) => {
+      const ans = await peer.getAnswer(data.offer);
+      socket.emit("peer:nego:done", { to: data.fromuserid, ans });
+    });
 
-  const handleNegoNeeded = useCallback(async () => {
-    const offer = await peer.getOffer();
-    console.log("peer:nego:needed", "called");
+    socket.on("peer:nego:final", async (data) => {
+      await peer.setLocalDes(data.ans);
+    });
 
-    socket.emit("peer:nego:needed", { offer, to: remoteSocketId });
-  }, [remoteSocketId, socket]);
+    return () => {
+      socket.off("receive_message");
+      socket.off("call:incoming");
+      socket.off("call:accepted");
+      socket.off("peer:nego:needed");
+      socket.off("peer:nego:final");
+    };
+  }, []);
+
+  const handleNegoNeeded = useCallback(() => {
+    const offer = peer.getOffer();
+    socket.emit("peer:nego:needed", {
+      offer,
+      to: selectedUser.id,
+      selectedUser,
+      user,
+    });
+  }, [selectedUser]);
 
   useEffect(() => {
     peer.peer.addEventListener("negotiationneeded", handleNegoNeeded);
@@ -104,48 +89,24 @@ export default function SingleView() {
     };
   }, [handleNegoNeeded]);
 
-  const handleNegoNeedIncomming = useCallback(
-    async ({ from, offer }) => {
-      console.log("peer:nego:done", "called");
-      const ans = await peer.getAnswer(offer);
-      socket.emit("peer:nego:done", { to: from, ans });
-    },
-    [socket]
-  );
-
-  const handleNegoNeedFinal = useCallback(async ({ ans }) => {
-    await peer.setLocalDescription(ans);
-  }, []);
-
   useEffect(() => {
-    peer.peer.addEventListener("track", async (ev) => {
-      const remoteStream = ev.streams;
-      setRemoteStream(remoteStream[0]);
+    peer.peer.addEventListener("track", (ev) => {
+      const mremoteStream = ev.streams.length
+        ? ev.streams[0]
+        : new MediaStream([ev.track]);
+      setRemoteStream(mremoteStream);
     });
   }, []);
 
   useEffect(() => {
-    socket.on("user:joined", handleUserJoined);
-    socket.on("incomming:call", handleIncommingCall);
-    socket.on("call:accepted", handleCallAccepted);
-    socket.on("peer:nego:needed", handleNegoNeedIncomming);
-    socket.on("peer:nego:final", handleNegoNeedFinal);
-
-    return () => {
-      socket.off("user:joined", handleUserJoined);
-      socket.off("incomming:call", handleIncommingCall);
-      socket.off("call:accepted", handleCallAccepted);
-      socket.off("peer:nego:needed", handleNegoNeedIncomming);
-      socket.off("peer:nego:final", handleNegoNeedFinal);
-    };
-  }, [
-    socket,
-    handleUserJoined,
-    handleIncommingCall,
-    handleCallAccepted,
-    handleNegoNeedIncomming,
-    handleNegoNeedFinal,
-  ]);
+    if (chatContainerRef.current) {
+      chatContainerRef.current.scrollTo({
+        top: chatContainerRef.current.scrollHeight,
+        left: 0,
+        behavior: "smooth",
+      });
+    }
+  }, [messages]);
 
   const sendMessage = () => {
     if (message.trim() === "") return;
@@ -166,6 +127,22 @@ export default function SingleView() {
       });
     }
   };
+
+  async function handleCall() {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: true,
+    });
+    setMyStream(stream);
+
+    const offer = await peer.getOffer();
+    socket.emit("call:send", {
+      from: socket.id,
+      fromuserid: user.id,
+      touserid: selectedUser.id,
+      offer,
+    });
+  }
 
   function onCloseCamera() {
     if (myStream) {
@@ -204,7 +181,7 @@ export default function SingleView() {
 
       <div className="absolute top-0 w-[300px] h-[300px] bg-gray-400">
         <p>stream data</p>
-        {/* <button onClick={sendStreams}>send</button> */}
+        <button onClick={sendStreams}>send</button>
         {myStream && (
           <>
             <ReactPlayer
