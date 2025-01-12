@@ -12,75 +12,41 @@ const configureSocket = (server) => {
 
   const users = new Map();
   const messageHandler = new MessageHandler(io, users);
-
+  const emailToSocketIdMap = new Map();
+  const socketidToEmailMap = new Map();
   io.on("connection", (socket) => {
-    // console.log(`Client connected: ${socket.id}`);
-
-    // Handle user connection
     socket.on("user_connected", (data) => {
-      // console.log("user_connected", data);
-
       const user = new User(data.id, data.name, data.email, socket.id);
       users.set(socket.id, user);
-
-      // Convert users map to an array
       const activeUsers = Array.from(users.values());
-
-      // Emit the active users array
       io.emit("active_users", activeUsers);
     });
 
-    // Handle sending messages
     socket.on("send_message", (messageData) => {
       messageHandler.handleSendMessage(socket, messageData);
     });
 
-    socket.on("incomming:call", (data) => {
-      const { to, offer } = data;
-      const receiver = Array.from(users.values()).find(
-        (user) => user.email === to
-      );
-      io.to(receiver.socketId).emit("incomming:call", {
-        from: to,
-        offer,
-      });
+    socket.on("room:join", (data) => {
+      const { email, room } = data;
+      emailToSocketIdMap.set(email, socket.id);
+      socketidToEmailMap.set(socket.id, email);
+      io.to(room).emit("user:joined", { email, id: socket.id });
+      socket.join(room);
+      io.to(socket.id).emit("room:join", data);
     });
 
-    socket.on("call:accepted", (data) => {
-      const { to, ans } = data;
-      const receiver = Array.from(users.values()).find(
-        (user) => user.email === to
-      );
-
-      io.to(receiver.socketId).emit("call:accepted", {
-        from: socket.id,
-        ans,
-        fromuserid: to,
-      });
+    socket.on("user:call", ({ to, offer }) => {
+      io.to(to).emit("incomming:call", { from: socket.id, offer });
+    });
+    socket.on("call:accepted", ({ to, ans }) => {
+      io.to(to).emit("call:accepted", { from: socket.id, ans });
     });
 
-    socket.on("peer:nego:needed", (data) => {
-      const { to, offer } = data;
-      const receiver = Array.from(users.values()).find(
-        (user) => user.email === to
-      );
-
-      io.to(receiver.socketId).emit("peer:nego:needed", {
-        from: to,
-        offer,
-      });
+    socket.on("peer:nego:needed", ({ to, offer }) => {
+      io.to(to).emit("peer:nego:needed", { from: socket.id, offer });
     });
-
-    socket.on("peer:nego:done", (data) => {
-      const { to, ans } = data;
-      const receiver = Array.from(users.values()).find(
-        (user) => user.email === to
-      );
-      io.to(receiver.socketId).emit("peer:nego:final", {
-        from: socket.id,
-        ans,
-        fromuserid: to,
-      });
+    socket.on("peer:nego:done", ({ to, ans }) => {
+      io.to(to).emit("peer:nego:final", { from: socket.id, ans });
     });
 
     // Handle client disconnection

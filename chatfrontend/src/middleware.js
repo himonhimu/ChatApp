@@ -4,6 +4,8 @@ export function middleware(req) {
   const path = req.nextUrl.pathname;
   const isLoginPage = path === "/login" || path.startsWith("/login/");
   const isSignUpPage = path === "/sign-up" || path.startsWith("/sign-up/");
+  const isLoby = path === "/vedio" || path.startsWith("/vedio/");
+  const isRoom = path === "/room" || path.startsWith("/room/");
 
   // Get the `mcookie` value
   let mcookie = req.cookies.get("chat-user");
@@ -19,7 +21,7 @@ export function middleware(req) {
   }
 
   // Allow access to login or sign-up pages if there's no `mcookie`
-  if (!mcookie && (isLoginPage || isSignUpPage)) {
+  if (!mcookie && (isLoginPage || isSignUpPage || isLoby || isRoom)) {
     return NextResponse.next();
   }
 

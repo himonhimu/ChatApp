@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import socket from "./Connector";
 import CreateNewGroup from "./models/CreateNewGroup";
 import { signOut } from "next-auth/react";
+import Link from "next/link";
 
 export default function Navbar() {
   const { logout, user, login } = useUser();
@@ -48,9 +49,9 @@ export default function Navbar() {
       <div className="bg-gray-800 p-2 text-white">
         {showGroupPop && <CreateNewGroup setPopUp={setShowGroupPop} />}
         <div className="container mx-auto flex justify-between items-center sticky top-0 z-50">
-          <div>
+          <Link href={"/"}>
             <p className="text-2xl font-bold">Chat App</p>
-          </div>
+          </Link>
           {user.isAdmin && (
             <div>
               <button
@@ -62,7 +63,8 @@ export default function Navbar() {
               </button>
             </div>
           )}
-
+          <Link href={"vedio"}>Loby</Link>
+          <Link href={"room"}>room</Link>
           <div className="flex gap-3">
             <p>Hello, {user.name} </p>
             <button onClick={onLogoutClick}>Logout</button>
