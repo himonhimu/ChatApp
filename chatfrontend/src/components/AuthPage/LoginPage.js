@@ -133,6 +133,12 @@ export default function LoginPage() {
           {/* <button type="button" onClick={onCheckClick}>
             Check
           </button> */}
+
+          <p>
+            <Link href={"/vedio"} className="text-blue-500">
+              Video
+            </Link>
+          </p>
         </div>
       </form>
     </div>
